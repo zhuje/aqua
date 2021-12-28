@@ -17,7 +17,7 @@ import (
 // X Get Host by ID
 // X Get containers by ID
 // X Get all containers for specific host
-// Create a new container in the database via API with json request format (example below)
+// X Create a new container in the database via API with json request format (example below)
 
 
 const hostID string = "id"
@@ -71,11 +71,9 @@ func server(router *gin.Engine){
 
 	router.GET("/containers", getAllContainers) // get all containers
 	router.GET("/containers/:id", getContainerByID) // get a container by container id
-	router.GET("/containers/host/:id", getContainersByHostID) // get all container with host id
+	router.GET("/containers/hosts/:id", getContainersByHostID) // get all container with host id
 	router.POST("/cheese", postContainer) // get all container with host id
 
-
-	// log.Fatal(http.ListenAndServe(":8081", nil))
 }
 
 func AddHeader() gin.HandlerFunc {
@@ -89,7 +87,6 @@ func AddHeader() gin.HandlerFunc {
 		gctx.Next()
 	}
 }
-
 
 // HANDLERS
 func getAllHosts(gctx *gin.Context) {
@@ -117,7 +114,7 @@ func getAllHosts(gctx *gin.Context) {
 		listOfObjects = append(listOfObjects, resp)
 	}
 
-	gctx.JSON(http.StatusOK, gin.H{"Containers": listOfObjects})
+	gctx.JSON(http.StatusOK, gin.H{"Hosts": listOfObjects})
 	return
 }
 
@@ -180,14 +177,14 @@ func getHostByID(gctx *gin.Context){
 		gctx.JSON(http.StatusOK, gin.H{"Hosts": "No host found with ID : " + key })
 		return
 	}
-	gctx.JSON(http.StatusOK, gin.H{"Logs": listOfObjects})
+	gctx.JSON(http.StatusOK, gin.H{"Hosts": listOfObjects})
 	return
 }
 
 func getContainerByID(gctx *gin.Context){
 	key := gctx.Params.ByName("id")
 
-	row, err := db.Query("SELECT * FROM containers WHERE id = ? ", key)
+	row, err := db.Query("SELECT * FROM containers WHERE id = ?", key)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -256,59 +253,13 @@ func getContainersByHostID(gctx *gin.Context){
 	return
 }
 
-// postAlbums adds an album from JSON received in the request body.
-
 func postContainer(gctx *gin.Context){
-	//body, error := ioutil.ReadAll(gctx.Request.Body)
-	//if error != nil {
-	//	gctx.JSON(http.StatusOK, gin.H{"Error": error})
-	//	return
-	//}
-	//fmt.Println("printing response body form ioutAll : ", string(body))
-	//var cheese Cheese
-	//if err := json.Unmarshal(body, &cheese); err != nil {  // Parse []byte to the go struct pointer
-	//	fmt.Println("Can not unmarshal JSON")
-	//}
-	//fmt.Println("container name:",  cheese.Name)
-	//gctx.JSON(http.StatusOK, gin.H{"Cheese": cheese.Name})
-	//return
-
-	//err = client.Set("id", jsonData, 0).Err()
-
-	// Call BindJSON to bind the received JSON to
-	// newAlbum.
-	//if err := gctx.BindJSON(&newContainer); err != nil {
-	//	return
-	//}
-
-	//newContainer = Container{
-	//	host_id: 6,
-	//	name: "apple",
-	//	image_name: "apple_18729834",
-	//}
-
-	//log.Println("Inserting student record ...")
-	//
-	//
-	//
-	//var container Container
-	//err := gctx.Bind(&container)
-	//if err != nil {
-	//	fmt.Println(err)
-	//}
-
-	//fmt.Println("printing response body: ", container.id, container.host_id, container.image_name, container.name)
-	//content := gin.H{"Hello": "World" + container.name}
-	//gctx.JSON(200, content)
-	//return
-
 	var cheese Cheese
 	if err:= gctx.BindJSON(&cheese);err!=nil{
 		gctx.AbortWithError(http.StatusBadRequest,err)
 		return
 	}
 	fmt.Println(cheese)
-
 
 	insertStudentSQL := `INSERT INTO containers(host_id, name, image_name) VALUES (?, ?, ?)`
 	statement, err := db.Prepare(insertStudentSQL) // Prepare statement.
@@ -329,156 +280,14 @@ func postContainer(gctx *gin.Context){
 
 
 
-//func displayHostID(db *sql.DB) {
-//	row, err := db.Query("SELECT * FROM hosts")
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//
-//	//resp := make(map[string]string)
-//	host := Host{}
-//	listOfContainers := make([]interface{},0)
-//
-//	defer row.Close()
-//	for row.Next() { // Iterate and fetch the records from result cursor
-//		resp := make(map[string]string)
-//
-//		err := row.Scan(&host.id, &host.uuid, &host.name, &host.ipAddress)
-//		if err != nil {
-//			log.Fatal("something went wrong while scanning database: ", err)
-//		}
-//		resp[hostID] = strconv.Itoa(host.id)
-//		resp[hostUUID] = host.uuid
-//		resp[hostName] = host.name
-//		resp[hostIPAddress] = host.ipAddress
-//
-//		log.Println(resp)
-//		listOfContainers = append(listOfContainers, resp)
-//		log.Println(listOfContainers)
-//		// log.Println("Pizza: ", host.id, host.uuid, host.name, host.ipAddress)
-//	}
-//}
-//
-//
-//func displayContainers(){
-//	db, _ := sql.Open("sqlite3", "./aqua.db")
-//	defer db.Close() // Defer Closing the database
-//
-//	row, err := db.Query("SELECT * FROM  containers")
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//	container := Container{}
-//	listOfContainers := make([]interface{},0)
-//
-//	defer row.Close()
-//	for row.Next() { // Iterate and fetch the records from result cursor
-//		resp := make(map[string]interface{})
-//		err := row.Scan(&container.id, &container.host_id, &container.name, &container.image_name)
-//		if err != nil {
-//			log.Fatal("something went wrong while scanning database: ", err)
-//		}
-//		// create map of container attributes
-//		resp[containerID] = container.id
-//		resp[containerHostID] = container.host_id
-//		resp[containerName] = container.name
-//		resp[containerImageName] = container.image_name
-//
-//		// append this to the listOfContainers
-//		listOfContainers = append(listOfContainers, resp)
-//	}
-//	log.Println(listOfContainers)
-//}
-//
-//func insertStudent(db *sql.DB, ) {
-//	log.Println("Inserting student record ...")
-//
-//	host_id := 2
-//	name := "nginx"
-//	image_name := "apple"
-//
-//	insertStudentSQL := `INSERT INTO containers(host_id, name, image_name ) VALUES (?, ?, ?)`
-//	statement, err := db.Prepare(insertStudentSQL) // Prepare statement.
-//	// This is good to avoid SQL injections
-//	if err != nil {
-//		log.Fatalln(err.Error())
-//	}
-//	_, err = statement.Exec(host_id, name, image_name)
-//	if err != nil {
-//		log.Fatalln(err.Error())
-//	}
-//}
-//
-//func testPathBase(){
-//
-//	db, _ := sql.Open("sqlite3", "./aqua.db")
-//	defer db.Close() // Defer Closing the database
-//
-//	row, err := db.Query("SELECT * FROM  containers WHERE id = 4")
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//	container := Container{}
-//
-//	defer row.Close()
-//	for row.Next() { // Iterate and fetch the records from result cursor
-//		resp := make(map[string]interface{})
-//		err := row.Scan(&container.id, &container.host_id, &container.name, &container.image_name)
-//		if err != nil {
-//			log.Fatal("something went wrong while scanning database: ", err)
-//		}
-//		// create map of container attributes
-//		resp[containerID] = container.id
-//		resp[containerHostID] = container.host_id
-//		resp[containerName] = container.name
-//		resp[containerImageName] = container.image_name
-//
-//		// append this to the listOfContainers
-//		log.Println(resp)
-//
-//	}
-//}
-//
-//func testServer(router *gin.Engine){
-//	router.GET("/containers/:id", func(c *gin.Context) {
-//		id := c.Params.ByName("id")
-//
-//		c.JSON(200, gin.H{
-//			"message": id,
-//		})
-//	})
-//	router.Run()
-//
-//}
-//
-//func testPath2(gctx *gin.Context){
-//	param := gctx.Params.ByName("id")
-//	log.Print(param)
-//
-//}
-//
-//func initDatabase(){
-//
-//}
-
 func main() {
-
 	db, _ = sql.Open("sqlite3", "./aqua.db")
 	defer db.Close() // Defer Closing the database
 
 	gin.SetMode(gin.ReleaseMode)
-	//router := gin.New()
-	router := gin.Default()
+	router := gin.New()
+	//router := gin.Default() // default allows you too see console print outs
 	server(router)
 	router.Run()
-
-
-	// JZ to delete -- for testing only
-	//db, _ := sql.Open("sqlite3", "./aqua.db")
-	//defer db.Close() // Defer Closing the database
-	////displayHostID(db)
-	//insertStudent(db)
-
-	//server()
 
 }
