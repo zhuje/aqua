@@ -2,8 +2,10 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
+	//"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
@@ -14,7 +16,8 @@ import (
 // X Get all containers list
 // X Get Host by ID
 // X Get containers by ID
-//- Get all containers for specific host
+// X Get all containers for specific host
+// Create a new container in the database via API with json request format (example below)
 
 
 const hostID string = "id"
@@ -47,6 +50,12 @@ type Container struct {
 	image_name string
 }
 
+type Cheese struct {
+	HostID int `json:"host_id"`
+	Name  string `json:"name"`
+	ImageName string `json:"image_name"`
+}
+
 var db *sql.DB
 
 // middleware to fetch from create database object
@@ -58,10 +67,13 @@ func server(router *gin.Engine){
 
 
 	router.GET("/hosts", getAllHosts)           // get all hosts
-	router.GET("/containers", getAllContainers) // get all containers
 	router.GET("/hosts/:id", getHostByID)   // get a host by host id
+
+	router.GET("/containers", getAllContainers) // get all containers
 	router.GET("/containers/:id", getContainerByID) // get a container by container id
-	router.GET("/containers/:host", getContainersByHostID) // get all container with host id
+	router.GET("/containers/host/:id", getContainersByHostID) // get all container with host id
+	router.POST("/cheese", postContainer) // get all container with host id
+
 
 	// log.Fatal(http.ListenAndServe(":8081", nil))
 }
@@ -108,7 +120,6 @@ func getAllHosts(gctx *gin.Context) {
 	gctx.JSON(http.StatusOK, gin.H{"Containers": listOfObjects})
 	return
 }
-
 
 func getAllContainers(gctx *gin.Context) {
 	row, err := db.Query("SELECT * FROM  containers")
@@ -210,7 +221,7 @@ func getContainerByID(gctx *gin.Context){
 }
 
 func getContainersByHostID(gctx *gin.Context){
-	key := gctx.Params.ByName("hostID")
+	key := gctx.Params.ByName("id")
 
 	row, err := db.Query("SELECT * FROM containers WHERE host_id = ? ", key)
 	if err != nil {
@@ -237,11 +248,82 @@ func getContainersByHostID(gctx *gin.Context){
 	}
 
 	if len(listOfContainers) == 0 {
-		gctx.JSON(http.StatusOK, gin.H{"Containers": "No host with that ID was found"})
+		gctx.JSON(http.StatusOK, gin.H{"Containers": "No host was found with host id :" + key})
 		return
 	}
 
 	gctx.JSON(http.StatusOK, gin.H{"Logs": listOfContainers})
+	return
+}
+
+// postAlbums adds an album from JSON received in the request body.
+
+func postContainer(gctx *gin.Context){
+	//body, error := ioutil.ReadAll(gctx.Request.Body)
+	//if error != nil {
+	//	gctx.JSON(http.StatusOK, gin.H{"Error": error})
+	//	return
+	//}
+	//fmt.Println("printing response body form ioutAll : ", string(body))
+	//var cheese Cheese
+	//if err := json.Unmarshal(body, &cheese); err != nil {  // Parse []byte to the go struct pointer
+	//	fmt.Println("Can not unmarshal JSON")
+	//}
+	//fmt.Println("container name:",  cheese.Name)
+	//gctx.JSON(http.StatusOK, gin.H{"Cheese": cheese.Name})
+	//return
+
+	//err = client.Set("id", jsonData, 0).Err()
+
+	// Call BindJSON to bind the received JSON to
+	// newAlbum.
+	//if err := gctx.BindJSON(&newContainer); err != nil {
+	//	return
+	//}
+
+	//newContainer = Container{
+	//	host_id: 6,
+	//	name: "apple",
+	//	image_name: "apple_18729834",
+	//}
+
+	//log.Println("Inserting student record ...")
+	//
+	//
+	//
+	//var container Container
+	//err := gctx.Bind(&container)
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
+
+	//fmt.Println("printing response body: ", container.id, container.host_id, container.image_name, container.name)
+	//content := gin.H{"Hello": "World" + container.name}
+	//gctx.JSON(200, content)
+	//return
+
+	var cheese Cheese
+	if err:= gctx.BindJSON(&cheese);err!=nil{
+		gctx.AbortWithError(http.StatusBadRequest,err)
+		return
+	}
+	fmt.Println(cheese)
+
+
+	insertStudentSQL := `INSERT INTO containers(host_id, name, image_name) VALUES (?, ?, ?)`
+	statement, err := db.Prepare(insertStudentSQL) // Prepare statement.
+	// This is good to avoid SQL injections
+	if err != nil {
+		gctx.JSON(http.StatusInternalServerError, gin.H{"Error": "An error occurred while preparing to insert into database."})
+		return
+	}
+	_, err = statement.Exec(cheese.HostID, cheese.Name, cheese.ImageName)
+	if err != nil {
+		gctx.JSON(http.StatusInternalServerError, gin.H{"Error": "An error occurred while trying to insert into database."})
+		return
+	}
+
+	gctx.JSON(http.StatusCreated, gin.H{"Container Created": cheese})
 	return
 }
 
@@ -385,7 +467,8 @@ func main() {
 	defer db.Close() // Defer Closing the database
 
 	gin.SetMode(gin.ReleaseMode)
-	router := gin.New()
+	//router := gin.New()
+	router := gin.Default()
 	server(router)
 	router.Run()
 
