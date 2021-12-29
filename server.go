@@ -4,15 +4,18 @@ import (
 	"database/sql"
 	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
-	"log"
 	"net/http"
 	"strconv"
 )
 
 var db *sql.DB
 
+const errorDBQuery string = "Error occurred while querying database."
+const errorNoMatch string = "No matching entry found with key : "
+const errorEmptyTable string = "There are currently no entries for in this table."
+
 func server(router *gin.Engine) {
-	router.Use(AddHeader())
+	//router.Use(AddHeader())
 	router.GET("/hosts", getAllHosts)                          // get all hosts
 	router.GET("/hosts/:id", getHostByID)                      // get a host by host id
 	router.GET("/containers", getAllContainers)                // get all containers
@@ -21,83 +24,54 @@ func server(router *gin.Engine) {
 	router.POST("/containers", postContainer)                  // get all container with host id
 }
 
-func emitJSON
-
 func getAllHosts(gctx *gin.Context) {
 	row, err := db.Query("SELECT * FROM hosts")
-	if err != nil {
-		log.Fatal(err)
-	}
 	defer row.Close()
-
-	listOfHosts := fetchHostRecords(row)
-	gctx.JSON(http.StatusOK, gin.H{"Hosts": listOfHosts})
-	return
-}
-
-func getAllContainers(gctx *gin.Context) {
-	row, err := db.Query("SELECT * FROM  containers")
 	if err != nil {
-		log.Fatal(err)
+		gctx.JSON(http.StatusOK, gin.H{"Error": errorDBQuery + err.Error()})
+		return
 	}
-	defer row.Close()
-	listOfContainers := fetchContainerRecords(row)
-	gctx.JSON(http.StatusOK, gin.H{"Containers": listOfContainers})
-	return
+	fetchHostRecords(gctx, row)
 }
 
 func getHostByID(gctx *gin.Context) {
-	// parse url to get the parameter, id
-	key := gctx.Params.ByName("id")
+	key := gctx.Params.ByName("id") // parse url for parameter
 	row, err := db.Query("SELECT * FROM hosts WHERE id = ? ", key)
 	if err != nil {
-		log.Fatal(err)
-	}
-	listOfHosts := fetchHostRecords(row)
-	if len(listOfHosts) == 0 {
-		gctx.JSON(http.StatusNotFound, gin.H{"Hosts": "No host found with ID : " + key})
+		gctx.JSON(http.StatusInternalServerError, gin.H{"Hosts": errorDBQuery + key})
 		return
 	}
-	gctx.JSON(http.StatusOK, gin.H{"Hosts": listOfHosts})
-	return
+	fetchHostRecords(gctx, row)
+}
+
+func getAllContainers(gctx *gin.Context) {
+	row, err := db.Query("SELECT * FROM containers")
+	defer row.Close()
+	if err != nil {
+		gctx.JSON(http.StatusInternalServerError, gin.H{"Containers": errorDBQuery})
+		return
+	}
+	fetchContainerRecords(gctx, row)
 }
 
 func getContainerByID(gctx *gin.Context) {
-	// parse url to get the parameter, id
-	key := gctx.Params.ByName("id")
-
+	key := gctx.Params.ByName("id") // parse url for parameter
 	row, err := db.Query("SELECT * FROM containers WHERE id = ?", key)
+	defer row.Close()
 	if err != nil {
-		log.Fatal(err)
-	}
-
-	listOfContainers := fetchContainerRecords(row)
-	if len(listOfContainers) == 0 {
-		gctx.JSON(http.StatusNotFound, gin.H{"Containers": "No host with that ID was found"})
+		gctx.JSON(http.StatusInternalServerError, gin.H{"Containers": errorDBQuery})
 		return
 	}
-
-	gctx.JSON(http.StatusOK, gin.H{"Logs": listOfContainers})
-	return
+	fetchContainerRecords(gctx, row)
 }
 
 func getContainersByHostID(gctx *gin.Context) {
-	// parse url to get the parameter, id
-	key := gctx.Params.ByName("id")
-
+	key := gctx.Params.ByName("id") // parse url for parameter
 	row, err := db.Query("SELECT * FROM containers WHERE host_id = ? ", key)
 	if err != nil {
-		log.Fatal(err)
+		gctx.JSON(http.StatusInternalServerError, gin.H{"Containers": errorDBQuery})
 	}
-
-	listOfContainers := fetchContainerRecords(row)
-	if len(listOfContainers) == 0 {
-		gctx.JSON(http.StatusOK, gin.H{"Containers": "No host was found with host id :" + key})
-		return
-	}
-
-	gctx.JSON(http.StatusOK, gin.H{"Logs": listOfContainers})
-	return
+	fetchContainerRecords(gctx, row)
 }
 
 func postContainer(gctx *gin.Context) {
@@ -109,6 +83,7 @@ func postContainer(gctx *gin.Context) {
 		return
 	}
 
+	// create query and post to database
 	insertContainerSQL := `INSERT INTO containers(host_id, name, image_name) VALUES (?, ?, ?)`
 	statement, err := db.Prepare(insertContainerSQL)
 	if err != nil {
@@ -125,53 +100,64 @@ func postContainer(gctx *gin.Context) {
 	return
 }
 
-func AddHeader() gin.HandlerFunc {
-	return func(gctx *gin.Context) {
-		gctx.Header("Access-Control-Allow-Origin", "*")
-		gctx.Header("Access-Control-Allow-Methods", "DELETE, POST, GET, OPTIONS")
-		gctx.Header("Access-Control-Allow-Headers", "Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With")
-		if gctx.Request.Method == "OPTIONS" {
-			gctx.AbortWithStatus(204)
-		}
-		gctx.Next()
-	}
-}
+//// AddHeader is  helper function to create header
+//func AddHeader() gin.HandlerFunc {
+//	return func(gctx *gin.Context) {
+//		gctx.Header("Access-Control-Allow-Origin", "*")
+//		gctx.Header("Access-Control-Allow-Methods", "DELETE, POST, GET, OPTIONS")
+//		gctx.Header("Access-Control-Allow-Headers", "Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With")
+//		if gctx.Request.Method == "OPTIONS" {
+//			gctx.AbortWithStatus(204)
+//		}
+//		gctx.Next()
+//	}
+//}
 
-
-func fetchHostRecords(row *sql.Rows) []interface{} {
+// fetchHostRecords	is a helper function to collect the result of a database query
+func fetchHostRecords(gctx *gin.Context, row *sql.Rows) {
 	host := Host{}
-	listOfObjects := make([]interface{}, 0)
+	listOfHosts := make([]interface{}, 0)
+	var err error
 
 	// Iterate and fetch the records from result cursor
 	for row.Next() {
 		resp := make(map[string]string)
-		err := row.Scan(&host.ID, &host.UUID, &host.Name, &host.IpAddress)
+		err = row.Scan(&host.ID, &host.UUID, &host.Name, &host.IpAddress)
 		if err != nil {
-			log.Fatal("something went wrong while scanning database: ", err)
+			gctx.JSON(http.StatusInternalServerError, gin.H{"Error": errorDBQuery})
+			return
 		}
-		// create map of container attributes
+		// create map of attributes
 		resp[hostID] = strconv.Itoa(host.ID)
 		resp[hostUUID] = host.UUID
 		resp[hostName] = host.Name
 		resp[hostIPAddress] = host.IpAddress
 
-		listOfObjects = append(listOfObjects, resp)
+		listOfHosts = append(listOfHosts, resp)
 	}
-	return listOfObjects
+
+	if len(listOfHosts) == 0 {
+		gctx.JSON(http.StatusOK, gin.H{"Containers": errorEmptyTable})
+	} else {
+		gctx.JSON(http.StatusOK, gin.H{"Containers": listOfHosts})
+	}
 }
 
-func fetchContainerRecords(row *sql.Rows) []interface{} {
+// fetchContainerRecords is a helper function to collect the result of a database query
+func fetchContainerRecords(gctx *gin.Context, row *sql.Rows) {
 	container := Container{}
 	listOfContainers := make([]interface{}, 0)
+	var err error
 
 	// Iterate and fetch the records from result cursor
 	for row.Next() {
 		resp := make(map[string]interface{})
-		err := row.Scan(&container.ID, &container.HostID, &container.Name, &container.ImageName)
+		err = row.Scan(&container.ID, &container.HostID, &container.Name, &container.ImageName)
 		if err != nil {
-			log.Fatal("something went wrong while scanning database: ", err)
+			gctx.JSON(http.StatusInternalServerError, gin.H{"Error": errorDBQuery})
+			return
 		}
-		// create map of container attributes
+		// create map of attributes
 		resp[containerID] = container.ID
 		resp[containerHostID] = container.HostID
 		resp[containerName] = container.Name
@@ -179,6 +165,11 @@ func fetchContainerRecords(row *sql.Rows) []interface{} {
 
 		listOfContainers = append(listOfContainers, resp)
 	}
-	return listOfContainers
-}
 
+	if len(listOfContainers) == 0 {
+		gctx.JSON(http.StatusOK, gin.H{"Containers": errorEmptyTable})
+	} else {
+		gctx.JSON(http.StatusOK, gin.H{"Containers": listOfContainers})
+	}
+
+}
