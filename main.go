@@ -12,7 +12,8 @@ func main() {
 	defer db.Close()
 
 	gin.SetMode(gin.ReleaseMode)
-	router := gin.New()
+	// router := gin.New()
+	router := gin.Default()
 
 	server(router)
 	router.Run()

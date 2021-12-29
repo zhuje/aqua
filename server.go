@@ -21,6 +21,8 @@ func server(router *gin.Engine) {
 	router.POST("/containers", postContainer)                  // get all container with host id
 }
 
+func emitJSON
+
 func getAllHosts(gctx *gin.Context) {
 	row, err := db.Query("SELECT * FROM hosts")
 	if err != nil {
@@ -39,7 +41,6 @@ func getAllContainers(gctx *gin.Context) {
 		log.Fatal(err)
 	}
 	defer row.Close()
-
 	listOfContainers := fetchContainerRecords(row)
 	gctx.JSON(http.StatusOK, gin.H{"Containers": listOfContainers})
 	return
@@ -48,21 +49,13 @@ func getAllContainers(gctx *gin.Context) {
 func getHostByID(gctx *gin.Context) {
 	// parse url to get the parameter, id
 	key := gctx.Params.ByName("id")
-
-	query, args := "SELECT * FROM hosts WHERE id = ?", key
-	row, err := db.Query(query, args)
+	row, err := db.Query("SELECT * FROM hosts WHERE id = ? ", key)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	//row, err := db.Query("SELECT * FROM hosts WHERE id = ? ", key)
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-
 	listOfHosts := fetchHostRecords(row)
 	if len(listOfHosts) == 0 {
-		gctx.JSON(http.StatusOK, gin.H{"Hosts": "No host found with ID : " + key})
+		gctx.JSON(http.StatusNotFound, gin.H{"Hosts": "No host found with ID : " + key})
 		return
 	}
 	gctx.JSON(http.StatusOK, gin.H{"Hosts": listOfHosts})
@@ -80,7 +73,7 @@ func getContainerByID(gctx *gin.Context) {
 
 	listOfContainers := fetchContainerRecords(row)
 	if len(listOfContainers) == 0 {
-		gctx.JSON(http.StatusOK, gin.H{"Containers": "No host with that ID was found"})
+		gctx.JSON(http.StatusNotFound, gin.H{"Containers": "No host with that ID was found"})
 		return
 	}
 
@@ -144,9 +137,6 @@ func AddHeader() gin.HandlerFunc {
 	}
 }
 
-func sqlQuery(query string, args...interface{}) *sql.Rows{
-
-}
 
 func fetchHostRecords(row *sql.Rows) []interface{} {
 	host := Host{}
@@ -191,3 +181,4 @@ func fetchContainerRecords(row *sql.Rows) []interface{} {
 	}
 	return listOfContainers
 }
+
