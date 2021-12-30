@@ -33,7 +33,7 @@ func getHostByID(gctx *gin.Context) {
 	key := gctx.Params.ByName("id") // parse url for parameter
 	row, err := db.Query("SELECT * FROM hosts WHERE id = ? ", key)
 	if err != nil {
-		gctx.JSON(http.StatusInternalServerError, gin.H{"Hosts": errorDuringQuery})
+		gctx.JSON(http.StatusInternalServerError, gin.H{"Error": errorDuringQuery + err.Error() })
 		return
 	}
 	emitHostRecords(gctx, row)
@@ -43,7 +43,7 @@ func getAllContainers(gctx *gin.Context) {
 	row, err := db.Query("SELECT * FROM containers")
 	defer row.Close()
 	if err != nil {
-		gctx.JSON(http.StatusInternalServerError, gin.H{"Containers": errorDuringQuery})
+		gctx.JSON(http.StatusInternalServerError, gin.H{"Error": errorDuringQuery + err.Error()})
 		return
 	}
 	emitContainerRecords(gctx, row)
@@ -54,7 +54,7 @@ func getContainerByID(gctx *gin.Context) {
 	row, err := db.Query("SELECT * FROM containers WHERE id = ?", key)
 	defer row.Close()
 	if err != nil {
-		gctx.JSON(http.StatusInternalServerError, gin.H{"Containers": errorDuringQuery})
+		gctx.JSON(http.StatusInternalServerError, gin.H{"Error": errorDuringQuery + err.Error()})
 		return
 	}
 	emitContainerRecords(gctx, row)
@@ -64,7 +64,7 @@ func getContainersByHostID(gctx *gin.Context) {
 	key := gctx.Params.ByName("id") // parse url for parameter
 	row, err := db.Query("SELECT * FROM containers WHERE host_id = ? ", key)
 	if err != nil {
-		gctx.JSON(http.StatusInternalServerError, gin.H{"Containers": errorDuringQuery})
+		gctx.JSON(http.StatusInternalServerError, gin.H{"Error": errorDuringQuery + err.Error()})
 	}
 	emitContainerRecords(gctx, row)
 }
@@ -82,12 +82,14 @@ func postContainer(gctx *gin.Context) {
 	insertContainerSQL := `INSERT INTO containers(host_id, name, image_name) VALUES (?, ?, ?)`
 	statement, err := db.Prepare(insertContainerSQL)
 	if err != nil {
-		gctx.JSON(http.StatusInternalServerError, gin.H{"Error": "An error occurred while preparing to insert into database."})
+		gctx.JSON(http.StatusInternalServerError, gin.H{"Error":
+			"An error occurred while preparing to insert into database." + err.Error()})
 		return
 	}
 	_, err = statement.Exec(container.HostID, container.Name, container.ImageName)
 	if err != nil {
-		gctx.JSON(http.StatusInternalServerError, gin.H{"Error": "An error occurred while trying to insert into database."})
+		gctx.JSON(http.StatusInternalServerError, gin.H{"Error":
+			"An error occurred while trying to insert into database. " + err.Error() })
 		return
 	}
 
@@ -98,11 +100,8 @@ func postContainer(gctx *gin.Context) {
 func AddHeader() gin.HandlerFunc {
 	return func(gctx *gin.Context) {
 		gctx.Header("Access-Control-Allow-Origin", "*")
-		gctx.Header("Access-Control-Allow-Methods", "DELETE, POST, GET, OPTIONS")
-		gctx.Header("Access-Control-Allow-Headers", "Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With")
-		if gctx.Request.Method == "OPTIONS" {
-			gctx.AbortWithStatus(204)
-		}
+		gctx.Header("Access-Control-Allow-Methods", " POST, GET")
+		gctx.Header("Access-Control-Allow-Headers", "Content-Type, Access-Control-Allow-Headers")
 		gctx.Next()
 	}
 }
@@ -116,7 +115,7 @@ func emitHostRecords(gctx *gin.Context, row *sql.Rows) {
 	for row.Next() {
 		err = row.Scan(&host.ID, &host.UUID, &host.Name, &host.IpAddress)
 		if err != nil {
-			gctx.JSON(http.StatusInternalServerError, gin.H{"Error": errorDuringQuery})
+			gctx.JSON(http.StatusInternalServerError, gin.H{"Error": errorDuringQuery + err.Error()})
 			return
 		}
 		listOfHosts = append(listOfHosts, host)
@@ -139,7 +138,7 @@ func emitContainerRecords(gctx *gin.Context, row *sql.Rows) {
 	for row.Next() {
 		err = row.Scan(&container.ID, &container.HostID, &container.Name, &container.ImageName)
 		if err != nil {
-			gctx.JSON(http.StatusInternalServerError, gin.H{"Error": errorDuringQuery})
+			gctx.JSON(http.StatusInternalServerError, gin.H{"Error": errorDuringQuery + err.Error()})
 			return
 		}
 		listOfContainers = append(listOfContainers, container)
