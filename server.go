@@ -16,7 +16,7 @@ func server(router *gin.Engine) {
 	router.GET("/containers", getAllContainers)                // get all containers
 	router.GET("/containers/:id", getContainerByID)            // get a container by container id
 	router.GET("/containers/hosts/:id", getContainersByHostID) // get all container with host id
-	router.POST("/containers", postContainer)                  // get all container with host id
+	router.POST("/containers", postContainer)                  // post a new container
 }
 
 func getAllHosts(gctx *gin.Context) {
