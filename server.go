@@ -10,7 +10,6 @@ import (
 var db *sql.DB
 
 func server(router *gin.Engine) {
-	router.Use(AddHeader())
 	router.GET("/hosts", getAllHosts)                          // get all hosts
 	router.GET("/hosts/:id", getHostByID)                      // get a host by host id
 	router.GET("/containers", getAllContainers)                // get all containers
@@ -95,15 +94,6 @@ func postContainer(gctx *gin.Context) {
 
 	gctx.Writer.WriteHeader(http.StatusCreated)
 	return
-}
-
-func AddHeader() gin.HandlerFunc {
-	return func(gctx *gin.Context) {
-		gctx.Header("Access-Control-Allow-Origin", "*")
-		gctx.Header("Access-Control-Allow-Methods", " POST, GET")
-		gctx.Header("Access-Control-Allow-Headers", "Content-Type, Access-Control-Allow-Headers")
-		gctx.Next()
-	}
 }
 
 func emitHostRecords(gctx *gin.Context, row *sql.Rows) {
