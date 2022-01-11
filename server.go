@@ -21,8 +21,7 @@ func server(router *gin.Engine) {
 func getAllHosts(gctx *gin.Context) {
 	row, err := db.Query("SELECT * FROM hosts")
 	defer row.Close()
-	if err != nil {
-		queryError(gctx, err)
+	if queryError(gctx, err) {
 		return
 	}
 	emitHostRecords(gctx, row)
@@ -31,8 +30,7 @@ func getAllHosts(gctx *gin.Context) {
 func getHostByID(gctx *gin.Context) {
 	key := gctx.Params.ByName("id") // parse url for parameter
 	row, err := db.Query("SELECT * FROM hosts WHERE id = ? ", key)
-	if err != nil {
-		queryError(gctx, err)
+	if queryError(gctx, err){
 		return
 	}
 	emitHostRecords(gctx, row)
@@ -41,8 +39,7 @@ func getHostByID(gctx *gin.Context) {
 func getAllContainers(gctx *gin.Context) {
 	row, err := db.Query("SELECT * FROM containers")
 	defer row.Close()
-	if err != nil {
-		queryError(gctx, err)
+	if queryError(gctx, err) {
 		return
 	}
 	emitContainerRecords(gctx, row)
@@ -52,8 +49,7 @@ func getContainerByID(gctx *gin.Context) {
 	key := gctx.Params.ByName("id") // parse url for parameter
 	row, err := db.Query("SELECT * FROM containers WHERE id = ?", key)
 	defer row.Close()
-	if err != nil {
-		queryError(gctx, err)
+	if queryError(gctx, err) {
 		return
 	}
 	emitContainerRecords(gctx, row)
@@ -62,8 +58,8 @@ func getContainerByID(gctx *gin.Context) {
 func getContainersByHostID(gctx *gin.Context) {
 	key := gctx.Params.ByName("id") // parse url for parameter
 	row, err := db.Query("SELECT * FROM containers WHERE host_id = ? ", key)
-	if err != nil {
-		queryError(gctx, err)
+	if queryError(gctx, err) {
+		return
 	}
 	emitContainerRecords(gctx, row)
 }
@@ -73,7 +69,7 @@ func postContainer(gctx *gin.Context) {
 
 	// bind response body to container object
 	if err := gctx.BindJSON(&container); err != nil {
-		gctx.AbortWithError(http.StatusBadRequest, err)
+		gctx.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
 		return
 	}
 
@@ -104,8 +100,7 @@ func emitHostRecords(gctx *gin.Context, row *sql.Rows) {
 	// iterate through rows, place into struct, and collect into a slice
 	for row.Next() {
 		err = row.Scan(&host.ID, &host.UUID, &host.Name, &host.IpAddress)
-		if err != nil {
-			queryError(gctx, err)
+		if queryError(gctx, err) {
 			return
 		}
 		listOfHosts = append(listOfHosts, host)
@@ -127,8 +122,7 @@ func emitContainerRecords(gctx *gin.Context, row *sql.Rows) {
 	// iterate through rows, place into struct, and collect into a slice
 	for row.Next() {
 		err = row.Scan(&container.ID, &container.HostID, &container.Name, &container.ImageName)
-		if err != nil {
-			queryError(gctx, err)
+		if queryError(gctx, err) {
 			return
 		}
 		listOfContainers = append(listOfContainers, container)
@@ -143,6 +137,11 @@ func emitContainerRecords(gctx *gin.Context, row *sql.Rows) {
 
 }
 
-func queryError(gctx *gin.Context, err error){
-	gctx.JSON(http.StatusInternalServerError, gin.H{"Error": errorDuringQuery + err.Error()})
+func queryError(gctx *gin.Context, err error) bool{
+	if err != nil {
+		gctx.JSON(http.StatusInternalServerError, gin.H{"Error": errorDuringQuery + err.Error()})
+		return true
+	}
+	return false
 }
+
